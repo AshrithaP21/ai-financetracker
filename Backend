@@ -1,0 +1,127 @@
+├── backend/
+│   ├── models/
+│   │   ├── user.js
+│   │   └── transaction.js
+│   ├── routes/
+│   │   ├── auth.js
+│   │   ├── transactions.js
+│   │   └── analytics.js
+│   ├── server.js
+│   └── package.json
+├── frontend/
+│   ├── src/
+│   │   ├── App.jsx
+│   │   ├── components/
+│   │   │   ├── Dashboard.jsx
+│   │   │   ├── TransactionForm.jsx
+│   │   │   ├── TransactionsList.jsx
+│   │   │   └── Charts.jsx
+│   │   └── main.jsx
+│   └── package.json
+└── README.md
+
+
+
+
+
+
+Backend (server.js)
+
+const express = require("express");
+const mongoose = require("mongoose");
+const cors = require("cors");
+require("dotenv").config();
+const authRoutes = require("./routes/auth");
+const transactionRoutes = require("./routes/transactions");
+const analyticsRoutes = require("./routes/analytics");
+const app = express();
+app.use(cors());
+app.use(express.json());
+// DB connect
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log(" MongoDB Connected"))
+  .catch(err => console.log(err));
+// routes
+app.use("/auth", authRoutes);
+app.use("/api/transactions", transactionRoutes);
+app.use("/api/analytics", analyticsRoutes);
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(" Backend running on port " + PORT));
+Models
+user.js
+const mongoose = require("mongoose");
+const userSchema = new mongoose.Schema({
+  googleId: String,
+  name: String,
+  email: String,
+  avatar: String
+});
+module.exports = mongoose.model("User", userSchema);
+transaction.js
+const mongoose = require("mongoose");
+const transactionSchema = new mongoose.Schema({
+  userId: String,
+  amount: Number,
+  category: String,
+  description: String,
+  date: { type: Date, default: Date.now }
+});
+module.exports = mongoose.model("Transaction", transactionSchema);
+Routes
+auth.js
+const express = require("express");
+const jwt = require("jsonwebtoken");
+const User = require("../models/user");
+const router = express.Router();
+// Simulated Google OAuth login
+router.post("/google", async (req, res) => {
+  const { googleId, name, email, avatar } = req.body;
+  let user = await User.findOne({ googleId });
+  if (!user) {
+    user = await User.create({ googleId, name, email, avatar });
+  }
+  const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
+  res.json({ token, user });
+});
+
+module.exports = router;
+transactions.js
+const express = require("express");
+const Transaction = require("../models/transaction");
+const router = express.Router();
+// Create
+router.post("/", async (req, res) => {
+  const tx = await Transaction.create(req.body);
+  res.json(tx);
+});
+// Read
+router.get("/", async (req, res) => {
+  const txs = await Transaction.find({ userId: req.query.userId });
+  res.json(txs);
+});
+// Update
+router.put("/:id", async (req, res) => {
+  const tx = await Transaction.findByIdAndUpdate(req.params.id, req.body, { new: true });
+  res.json(tx);
+});
+// Delete
+router.delete("/:id", async (req, res) => {
+  await Transaction.findByIdAndDelete(req.params.id);
+  res.json({ success: true });
+});
+module.exports = router;
+analytics.js
+const express = require("express");
+const Transaction = require("../models/transaction");
+const router = express.Router();
+
+router.get("/summary", async (req, res) => {
+  const txs = await Transaction.find({ userId: req.query.userId });
+  let income = 0, expense = 0;
+  txs.forEach(t => {
+    if (t.amount > 0) income += t.amount;
+    else expense += Math.abs(t.amount);
+  });
+  res.json({ income, expense, savings: income - expense });
+});
+module.exports = router;
