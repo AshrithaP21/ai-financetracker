@@ -1,0 +1,18 @@
+ Deployment Checklist
+
+1. Backend on Render
+Build Command: npm install
+Start Command: node server.js
+Env Vars:
+MONGO_URI=your-mongodb-uri
+JWT_SECRET=secret123
+2. Frontend on Vercel
+Build Command: npm run build
+Output Dir: dist
+Ensure API_URL points to your Render backend URL.
+3. README.md
+Include:
+## Live Demo
+- Frontend: https://finance-tracker-frontend.vercel.app
+- Backend: https://finance-tracker-backend.onrender.com
+ This version is ready for deployment 
