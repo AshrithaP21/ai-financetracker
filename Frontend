@@ -1,0 +1,107 @@
+App.jsx
+import { useState } from "react";
+import Dashboard from "./components/Dashboard";
+import axios from "axios";
+const API_URL = "https://finance-tracker-backend.onrender.com"; // ✅ update after backend deploy
+function App() {
+  const [user, setUser] = useState(null);
+  const login = async () => {
+    const res = await axios.post(`${API_URL}/auth/google`, {
+      googleId: "123",
+      name: "Test User",
+      email: "test@gmail.com",
+      avatar: "https://i.pravatar.cc/150?img=5"
+    });
+    setUser(res.data.user);
+  };
+
+  return (
+    <div className="p-6">
+      {!user ? (
+        <button className="bg-blue-500 text-white px-4 py-2 rounded" onClick={login}>
+          Sign in with Google
+        </button>
+      ) : (
+        <Dashboard user={user} />
+      )}
+    </div>
+  );
+}
+export default App;
+Dashboard.jsx
+import { useEffect, useState } from "react";
+import axios from "axios";
+import TransactionsList from "./TransactionsList";
+import TransactionForm from "./TransactionForm";
+const API_URL = "https://finance-tracker-backend.onrender.com"; 
+export default function Dashboard({ user }) {
+  const [summary, setSummary] = useState({ income: 0, expense: 0, savings: 0 });
+  const [transactions, setTransactions] = useState([]);
+  const loadData = async () => {
+    const s = await axios.get(`${API_URL}/api/analytics/summary?userId=${user._id}`);
+    setSummary(s.data);
+    const t = await axios.get(`${API_URL}/api/transactions?userId=${user._id}`);
+    setTransactions(t.data);
+  };
+  useEffect(() => { loadData(); }, []);
+
+  return (
+    <div>
+      <h1 className="text-xl mb-4">Welcome {user.name}</h1>
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="bg-white p-4 shadow rounded">Income: ${summary.income}</div>
+        <div className="bg-white p-4 shadow rounded">Expense: ${summary.expense}</div>
+        <div className="bg-white p-4 shadow rounded">Savings: ${summary.savings}</div>
+      </div>
+      <TransactionForm user={user} refresh={loadData} />
+      <TransactionsList list={transactions} />
+    </div>
+  );
+}
+TransactionForm.jsx
+import { useState } from "react";
+import axios from "axios";
+const API_URL = "https://finance-tracker-backend.onrender.com";
+export default function TransactionForm({ user, refresh }) {
+  const [text, setText] = useState("");
+  const addTx = async () => {
+    if (!text) return;
+    const [desc, amt] = text.split("$");
+    const tx = {
+      userId: user._id,
+      description: desc.trim(),
+      amount: parseFloat(amt) || 0,
+      category: amt > 0 ? "Expense" : "Income"
+    };
+    await axios.post(`${API_URL}/api/transactions`, tx);
+    setText("");
+    refresh();
+  };
+  return (
+    <div className="mb-4">
+      <input
+        value={text}
+        onChange={e => setText(e.target.value)}
+        placeholder="e.g. Coffee $5"
+        className="border p-2 mr-2"
+      />
+      <button onClick={addTx} className="bg-green-500 text-white px-4 py-2 rounded">
+        Add
+      </button>
+    </div>
+  );
+}
+TransactionsList.jsx
+export default function TransactionsList({ list }) {
+  return (
+    <div className="bg-white p-4 shadow rounded">
+      <h2 className="font-bold mb-2">Transactions</h2>
+      <ul>
+        {list.map(tx => (
+          <li key={tx._id}>{tx.description} - ${tx.amount} ({tx.category})</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
